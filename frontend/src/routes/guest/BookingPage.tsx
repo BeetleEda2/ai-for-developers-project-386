@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
+import { Calendar } from '@mantine/dates';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import {
   Title,
   Text,
@@ -14,15 +17,17 @@ import {
   Alert,
   Loader,
   Center,
-  Accordion,
   SimpleGrid,
   Paper,
   Divider,
   Box,
+  ScrollArea,
 } from '@mantine/core';
 import { useEventType, useSlots, useOwner, useCreateBooking } from '../../api/hooks';
 import { groupSlotsByDay, formatDateTime } from '../../lib/datetime';
 import { getErrorMessage, isConflictError, isValidationError } from '../../lib/errors';
+
+dayjs.extend(utc);
 
 interface SelectedSlot {
   start: string;
@@ -105,6 +110,24 @@ export function BookingPage() {
     }
   };
 
+  const grouped = slots ? groupSlotsByDay(slots) : [];
+
+  const availableDates = useMemo(() => {
+    if (!grouped) return [];
+    return grouped.map((g) => dayjs.utc(g.date).toDate());
+  }, [grouped]);
+
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  const selectedDaySlots = useMemo(() => {
+    if (!selectedDate || !grouped) return [];
+    const dateKey = dayjs(selectedDate).format('YYYY-MM-DD');
+    return grouped.find((g) => g.date === dateKey)?.slots ?? [];
+  }, [selectedDate, grouped]);
+
+  const minDate = dayjs.utc().startOf('day').toDate();
+  const maxDate = dayjs.utc().add(13, 'day').endOf('day').toDate();
+
   if (eventTypeLoading) {
     return (
       <Stack>
@@ -150,8 +173,6 @@ export function BookingPage() {
     );
   }
 
-  const grouped = slots ? groupSlotsByDay(slots) : [];
-
   return (
     <Stack gap="lg">
       <Box>
@@ -170,10 +191,10 @@ export function BookingPage() {
 
       <Divider />
 
-      <SimpleGrid cols={{ base: 1, md: selectedSlot ? 2 : 1 }}>
+      <SimpleGrid cols={{ base: 1, md: 2 }}>
         <Box>
           <Title order={4} mb="md">
-            Select a time slot
+            Select a date
           </Title>
           {slotsLoading ? (
             <Center py="xl">
@@ -182,79 +203,102 @@ export function BookingPage() {
           ) : grouped.length === 0 ? (
             <Text c="dimmed">No available slots in the next 14 days</Text>
           ) : (
-            <Accordion>
-              {grouped.map((group) => (
-                <Accordion.Item key={group.date} value={group.date}>
-                  <Accordion.Control>
-                    <Text fw={500}>{group.label}</Text>
-                  </Accordion.Control>
-                  <Accordion.Panel>
-                    <SimpleGrid cols={{ base: 2, sm: 3 }}>
-                      {group.slots.map((slot) => (
-                        <Button
-                          key={slot.start}
-                          variant={
-                            selectedSlot?.start === slot.start
-                              ? 'filled'
-                              : 'outline'
-                          }
-                          size="sm"
-                          onClick={() =>
-                            setSelectedSlot({
-                              start: slot.start,
-                              end: slot.end,
-                              label: slot.label,
-                            })
-                          }
-                        >
-                          {slot.label}
-                        </Button>
-                      ))}
-                    </SimpleGrid>
-                  </Accordion.Panel>
-                </Accordion.Item>
-              ))}
-            </Accordion>
+            <Calendar
+              date={selectedDate ?? undefined}
+              onDateChange={(date) => setSelectedDate(date)}
+              minDate={minDate}
+              maxDate={maxDate}
+              getDayProps={(dateStr) => {
+                const d = dayjs(dateStr);
+                const isAvailable = availableDates.some((ad) =>
+                  d.isSame(ad, 'day'),
+                );
+                const isPast = d.isBefore(dayjs(), 'day');
+                return {
+                  selected: d.isSame(dayjs(selectedDate), 'day'),
+                  disabled: !isAvailable || isPast,
+                  onClick: isAvailable && !isPast
+                    ? () => setSelectedDate(dateStr)
+                    : undefined,
+                };
+              }}
+            />
           )}
         </Box>
 
-        {selectedSlot && (
-          <Box>
-            <Paper p="lg" withBorder>
-              <Title order={4} mb="md">
-                Your details
-              </Title>
-              <Text c="dimmed" size="sm" mb="md">
-                {selectedSlot.label}
-              </Text>
-              <form onSubmit={form.onSubmit(handleSubmit)}>
-                <Stack gap="md">
-                  <TextInput
-                    label="Name"
-                    placeholder="Your name"
-                    required
-                    {...form.getInputProps('guestName')}
-                  />
-                  <TextInput
-                    label="Email"
-                    placeholder="your@email.com"
-                    type="email"
-                    required
-                    {...form.getInputProps('guestEmail')}
-                  />
-                  <Textarea
-                    label="Notes"
-                    placeholder="Any additional information..."
-                    {...form.getInputProps('notes')}
-                  />
-                  <Button type="submit" loading={createBooking.isPending}>
-                    Book
-                  </Button>
-                </Stack>
-              </form>
-            </Paper>
-          </Box>
-        )}
+        <Box>
+          <Title order={4} mb="md">
+            Select a time slot
+          </Title>
+          {!selectedDate ? (
+            <Text c="dimmed">Pick a date on the calendar</Text>
+          ) : selectedDaySlots.length === 0 ? (
+            <Text c="dimmed">No slots available on this day</Text>
+          ) : (
+            <Stack gap="md">
+              <ScrollArea.Autosize mah={350}>
+                <SimpleGrid cols={{ base: 2, sm: 3 }}>
+                  {selectedDaySlots.map((slot) => (
+                    <Button
+                      key={slot.start}
+                      variant={
+                        selectedSlot?.start === slot.start
+                          ? 'filled'
+                          : 'outline'
+                      }
+                      size="sm"
+                      onClick={() =>
+                        setSelectedSlot({
+                          start: slot.start,
+                          end: slot.end,
+                          label: slot.label,
+                        })
+                      }
+                    >
+                      {slot.label}
+                    </Button>
+                  ))}
+                </SimpleGrid>
+              </ScrollArea.Autosize>
+
+              {selectedSlot && (
+                <Paper p="lg" withBorder>
+                  <Title order={4} mb="md">
+                    Your details
+                  </Title>
+                  <Text c="dimmed" size="sm" mb="md">
+                    {selectedSlot.label}
+                  </Text>
+                  <form onSubmit={form.onSubmit(handleSubmit)}>
+                    <Stack gap="md">
+                      <TextInput
+                        label="Name"
+                        placeholder="Your name"
+                        required
+                        {...form.getInputProps('guestName')}
+                      />
+                      <TextInput
+                        label="Email"
+                        placeholder="your@email.com"
+                        type="email"
+                        required
+                        {...form.getInputProps('guestEmail')}
+                      />
+                      <Textarea
+                        label="Notes"
+                        placeholder="Any additional information..."
+                        {...form.getInputProps('notes')}
+                      />
+                      <Button type="submit" loading={createBooking.isPending}>
+                        Book
+                      </Button>
+                    </Stack>
+                  </form>
+                </Paper>
+              )}
+            </Stack>
+          )}
+        </Box>
       </SimpleGrid>
     </Stack>
   );

@@ -1,2 +1,4 @@
 spec/node_modules/
 spec/tsp-output/
+frontend/node_modules/
+frontend/dist/

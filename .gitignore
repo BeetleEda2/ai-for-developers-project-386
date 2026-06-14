@@ -2,3 +2,10 @@ spec/node_modules/
 spec/tsp-output/
 frontend/node_modules/
 frontend/dist/
+frontend/.env
+backend/node_modules/
+backend/dist/
+e2e/node_modules/
+e2e/playwright-report/
+e2e/test-results/
+e2e/.cache/

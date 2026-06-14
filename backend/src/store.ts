@@ -3,7 +3,7 @@ import type { Owner, EventType, Booking } from './types.js';
 
 export const owner: Owner = {
   id: 'owner-1',
-  name: 'Alex',
+  name: 'Daria',
   timezone: 'Europe/Moscow',
 };
 

@@ -1,0 +1,17 @@
+{
+  "name": "call-booking-spec",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeSpec specification for the call booking service (Design First)",
+  "type": "module",
+  "scripts": {
+    "build": "tsp compile .",
+    "watch": "tsp compile . --watch"
+  },
+  "dependencies": {
+    "@typespec/compiler": "latest",
+    "@typespec/http": "latest",
+    "@typespec/rest": "latest",
+    "@typespec/openapi3": "latest"
+  }
+}

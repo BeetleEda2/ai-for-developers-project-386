@@ -99,7 +99,7 @@ export function DashboardPage() {
                   <Group gap="xs">
                     <IconClock size={14} />
                     <Text size="sm" fw={500}>
-                      {formatDateTime(booking.start)}
+                      {formatDateTime(booking.start, owner?.timezone)}
                     </Text>
                   </Group>
                   {booking.notes && (

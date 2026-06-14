@@ -90,12 +90,6 @@ model BookingCreate {
 // Ошибки
 // ---------------------------------------------------------------------------
 
-@error
-model Error {
-  code: string;
-  message: string;
-}
-
 /** Время уже занято другим бронированием. */
 @error
 model ConflictError {
@@ -109,6 +103,14 @@ model ConflictError {
 model ValidationError {
   @statusCode statusCode: 422;
   code: "VALIDATION_FAILED";
+  message: string;
+}
+
+/** Запрошенный ресурс не найден. */
+@error
+model NotFoundError {
+  @statusCode statusCode: 404;
+  code: "NOT_FOUND";
   message: string;
 }
 
@@ -132,7 +134,7 @@ namespace EventTypes {
   @get op list(): EventType[];
 
   /** Один тип события. */
-  @get op read(@path id: string): EventType | Error;
+  @get op read(@path id: string): EventType | NotFoundError;
 
   /** Создать тип события (владелец). */
   @post op create(@body body: EventTypeCreate): {
@@ -153,7 +155,7 @@ namespace EventTypes {
     @path id: string,
     @query from?: utcDateTime,
     @query to?: utcDateTime,
-  ): Slot[] | Error;
+  ): Slot[] | NotFoundError;
 }
 
 // ---------------------------------------------------------------------------
@@ -166,7 +168,7 @@ namespace Bookings {
   @get op list(): Booking[];
 
   /** Детали бронирования. */
-  @get op read(@path id: string): Booking | Error;
+  @get op read(@path id: string): Booking | NotFoundError;
 
   /** Создать бронирование (гость). 409 если время занято, 422 если невалидно. */
   @post op create(@body body: BookingCreate): {

@@ -18,12 +18,13 @@ import {
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { IconArrowLeft, IconCalendar, IconPlus } from '@tabler/icons-react';
-import { useEventTypes, useCreateEventType } from '../../api/hooks';
+import { useEventTypes, useCreateEventType, useOwner } from '../../api/hooks';
 import { formatDate } from '../../lib/datetime';
 import { getErrorMessage, isValidationError } from '../../lib/errors';
 
 export function AdminEventTypesPage() {
   const { data: eventTypes, isLoading, error } = useEventTypes();
+  const { data: owner } = useOwner();
   const createMutation = useCreateEventType();
 
   const form = useForm({
@@ -146,7 +147,7 @@ export function AdminEventTypesPage() {
                       {et.durationMinutes} min
                     </Badge>
                     <Text size="xs" c="dimmed">
-                      Created {formatDate(et.createdAt)}
+                      Created {formatDate(et.createdAt, owner?.timezone)}
                     </Text>
                   </Group>
                 </Stack>

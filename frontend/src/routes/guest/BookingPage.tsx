@@ -82,7 +82,7 @@ export function BookingPage() {
       });
       setBookingSuccess({
         eventTypeTitle: eventType?.title ?? '',
-        dateTime: formatDateTime(booking.start),
+        dateTime: formatDateTime(booking.start, tz),
         guestName: booking.guestName,
       });
     } catch (err) {
@@ -110,20 +110,21 @@ export function BookingPage() {
     }
   };
 
-  const grouped = slots ? groupSlotsByDay(slots) : [];
+  const tz = owner?.timezone ?? 'UTC';
+  const grouped = slots ? groupSlotsByDay(slots, tz) : [];
 
   const availableDates = useMemo(() => {
     if (!grouped) return [];
-    return grouped.map((g) => dayjs.utc(g.date).toDate());
+    return grouped.map((g) => g.date);
   }, [grouped]);
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const selectedDaySlots = useMemo(() => {
     if (!selectedDate || !grouped) return [];
-    const dateKey = dayjs(selectedDate).format('YYYY-MM-DD');
+    const dateKey = dayjs.utc(selectedDate).tz(tz).format('YYYY-MM-DD');
     return grouped.find((g) => g.date === dateKey)?.slots ?? [];
-  }, [selectedDate, grouped]);
+  }, [selectedDate, grouped, tz]);
 
   const minDate = dayjs.utc().startOf('day').toDate();
   const maxDate = dayjs.utc().add(13, 'day').endOf('day').toDate();
@@ -209,13 +210,14 @@ export function BookingPage() {
               minDate={minDate}
               maxDate={maxDate}
               getDayProps={(dateStr) => {
-                const d = dayjs(dateStr);
-                const isAvailable = availableDates.some((ad) =>
-                  d.isSame(ad, 'day'),
-                );
-                const isPast = d.isBefore(dayjs(), 'day');
+                const dateTz = dayjs.utc(dateStr).tz(tz).format('YYYY-MM-DD');
+                const isAvailable = availableDates.includes(dateTz);
+                const isPast = dayjs.utc(dateStr).isBefore(dayjs(), 'day');
+                const selTz = selectedDate
+                  ? dayjs.utc(selectedDate).tz(tz).format('YYYY-MM-DD')
+                  : null;
                 return {
-                  selected: d.isSame(dayjs(selectedDate), 'day'),
+                  selected: dateTz === selTz,
                   disabled: !isAvailable || isPast,
                   onClick: isAvailable && !isPast
                     ? () => setSelectedDate(dateStr)
